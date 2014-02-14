@@ -1,0 +1,11 @@
+# C files
+*.o
+*.d
+
+# Binary
+bin
+
+# Third-party
+third_party
+!third_party/Makefile
+!third_party/third_party/third_party.mk
