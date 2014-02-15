@@ -22,16 +22,69 @@ First you need to set some environment variables
         source scripts/setenv_bash      # for bash
         source scripts/setenv_csh       # for csh
 
+Then, copy ScaCTM to every nodes of cluster. We assume you have two nodes, `juncluster1` and `juncluster2`, and ScaCTM is stored at `juncluster1:ScaCTM`
+
+        scp -r ScaCTM juncluster2:
+
 ### Input data
+Download the example data, from [Yahoo-LDA](https://github.com/sudar/Yahoo_LDA)
+
+        mkdir work && cd work   # We'll do everything in work/
         wget https://raw.github.com/sudar/Yahoo_LDA/master/test/ydir_1k.txt
 
+Now, take a look at the data. Every document is a single line in the file, every line is 
+
+        docid site word_1 word_2 ...
+
+You need to make sure that `docid` is unique. `site` is not used by ScaCTM currently, just for compatibility with Yahoo-LDA. Followed by these two fields are all the words in the corpus. You may wish to do some pre-processing, e.g. remove stop words.
+
 ### Train
+
+First, open a file `machinefile`, put the following lines
+
+        juncluster1
+        juncluster2
+
+Which is the hostnames for your cluster.
+
+Look at help of `ctm-train`
+
+        ctm-train --help
+
+Now we want to train a model with default parameters
+
+        ctm-train -f machinefile ydir_1k.txt
+
+If you only have one machine, use
+
+        ctm-train ydir_1k.txt
+
+The training is now started, you will see its progress on your console
+
+        Training on juncluster1, juncluster2 (2 nodes).
+        Distributing executables...
+        Done (7.418916 seconds).
+        Starting server...
+        Formatting corpus ydir_1k.txt...
+        Done (1.675312 seconds).
+        Training
+        100.000000%
+        Done (68.470395 seconds).
+        Gathering results...
+        Done (13.113103 seconds). Model stored in /home/jianfei/tmp/ScaCTM/work/ydir_1k.txt.model.
+
+When the training is completed, the result in stored in `ydir_1k.txt.model/info`
+
+        * `model.topToWor.txt` is learned topics
+        * `model.dict.json` is a list of dictionary / vocabulary
+        * `model.phi.json` is a V * K matrix phi, where V is vocabulary size and K is number of topics. phi[v, k] = p(w=v | z=k, phi) is the probabilty of word v of topic k. Word v is the v-th line in `model.dict.json`.
+        * `model.mu.json`, `model.cov.json` are prior mean and covariance. `model.corr.json` is the correlation matrix.
+        * `model.top.json` is the topic distribution `eta` for each document. It uses `docid` provided in data as key and `eta` as value.
+
 
 ### Train and test
 
 ### Perplexity evaluation
-
-### Distributed usage
 
 BLAS
 ----
@@ -81,7 +134,7 @@ Please create a issue for us if you found any bugs or want any new features. We 
 Dependencies
 ----
 
-ScaCTM is built upon the Yahoo-LDA, which is a distributed framework for topic modeling.
+ScaCTM is built upon the [Yahoo-LDA](https://github.com/sudar/Yahoo_LDA), which is a distributed framework for topic modeling.
 
 License
 ----
