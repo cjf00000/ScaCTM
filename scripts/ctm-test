@@ -158,7 +158,7 @@ if __name__ == '__main__':
         num_lines = int(remote.bash("wc -l %s | awk '{print $1}'" % work_corpus)[0])
         cnt = 0 
 	for line in remote.real_time_bash(cmd_train):
-		if len(re.findall('Document', line))>0:
+		if len(re.findall('Document [0-9]+', line))>0:
                         cnt = cnt + 1
 			sys.stdout.write('\r%f%%' % (float(cnt) / num_lines * 100) )
 			sys.stdout.flush()
