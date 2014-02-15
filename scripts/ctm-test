@@ -65,6 +65,10 @@ if __name__ == '__main__':
 	model_prefix = os.path.abspath(args.model) + '/work/' + prefix
 	output_dir = os.path.abspath(args.outdir)
 
+	if os.path.exists(args.outdir):
+                remote.bash(library + " " + mpi + " rm -rf %s" % args.outdir)
+		#print 'Error: directory %s/ already exists. Terminating... (Remove directory %s/ if you want to run again)' % (args.outdir, args.outdir)
+
 	log_dir = output_dir + '/' + 'log'
 	bin_dir = output_dir + '/' + 'bin'
 	work_dir = output_dir + '/' + 'work'

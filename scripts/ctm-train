@@ -48,18 +48,19 @@ if __name__ == '__main__':
 	# set up some variables
 	root_dir = os.path.abspath(os.path.dirname(sys.argv[0]) + '/../')
         library = "LD_LIBRARY_PATH=%s/third_party/third_party/lib " % root_dir
+	mpi = '%s/third_party/third_party/bin/mpiexec -f %s' % (root_dir, args.machinefile)
+	mpirun = '%s -np %d' % (mpi, num_machines)
+
 	if os.path.exists(args.outdir):
-		print 'Error: directory %s/ already exists. Terminating... (Remove directory %s/ if you want to run again)' % (args.outdir, args.outdir)
-		sys.exit(0)
+                remote.bash(library + " " + mpi + " rm -rf %s" % args.outdir)
+		#print 'Error: directory %s/ already exists. Terminating... (Remove directory %s/ if you want to run again)' % (args.outdir, args.outdir)
+
 	model_dir = os.path.abspath(args.outdir)
 
 	log_dir = model_dir + '/' + 'log'
 	bin_dir = model_dir + '/' + 'bin'
 	work_dir = model_dir + '/' + 'work'
 	info_dir = model_dir + '/' + 'info'
-
-	mpi = '%s/third_party/third_party/bin/mpiexec -f %s' % (root_dir, args.machinefile)
-	mpirun = '%s -np %d' % (mpi, num_machines)
 
 	# set up directories
 	# make directory remotely

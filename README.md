@@ -91,9 +91,11 @@ We need a training set and testing set
 You'll get a training set and a testing set with 8:2 documents.
 
 Train
+
         ctm-train -f machinefile ydir_1k.txt.train
 
 Test
+
         ctm-test -m ydir_1k.txt.train.model/ ydir_1k.txt.test 
 
 Test result is stored in `ydir_1k.txt.test.result/info`.
@@ -107,9 +109,11 @@ Sometimes you want to measure the perplexity on a test set. You need to further 
 You'll get a training set and a testing set with 8:2 documents, the test set is further divided into an observed part and a heldout part.
 
 Train
+
         ctm-train -f machinefile ydir_1k.txt.train
 
 Test
+
         ctm-test -m ydir_1k.txt.test_heldout --heldout ydir_1k.txt.train.model/ ydir_1k.txt.test_observed
 
 Perplexity is shown at the bottom.
