@@ -40,7 +40,7 @@ glog: path gflags $(GLOG_LIB)
 $(GLOG_LIB): $(GLOG_SRC)
 	tar zxf $< -C $(THIRD_PARTY_SRC)
 	cd $(basename $(basename $<)); \
-	./configure --prefix=$(THIRD_PARTY) --with-gflags=$(THIRD_PARTY); \
+	./configure --enable-frame-pointers --prefix=$(THIRD_PARTY) --with-gflags=$(THIRD_PARTY); \
 	make -j install
 
 $(GLOG_SRC):
@@ -255,6 +255,8 @@ $(ARMA_LIB): $(ARMA_SRC)
 	cd $(basename $(basename $<)); \
 	cp -r include/* $(THIRD_PARTY_INCLUDE)
 	sed -i '25c \ ' $(THIRD_PARTY_INCLUDE)/armadillo_bits/config.hpp
+	sed -i '11c #define ARMA_USE_LAPACK' $(THIRD_PARTY_INCLUDE)/armadillo_bits/config.hpp
+	sed -i '18c #define ARMA_USE_BLAS ' $(THIRD_PARTY_INCLUDE)/armadillo_bits/config.hpp
 
 $(ARMA_SRC):
 	wget http://ml-thu.net/~jianfei/static/dependencies/armadillo-3.930.2.tar.gz -O $@

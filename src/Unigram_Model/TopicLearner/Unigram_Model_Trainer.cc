@@ -91,13 +91,11 @@ Unigram_Model_Trainer::Unigram_Model_Trainer(TypeTopicCounts& ttc,
 
 	if (!Context::get_instance().get_bool("skipinitz"))
 	{
-                cout << "Cov is eye" << endl;
 		_mu = zeros<mat>(_num_topics, 1);
 		_cov = eye<mat>(_num_topics, _num_topics);
 	}
 	else
 	{
-                cout << "Loading mu dump..." << endl;
 		string mu_dumpfile = context.get_string("mudump");
 		string cov_dumpfile = context.get_string("covdump");
 		_mu.load(mu_dumpfile);

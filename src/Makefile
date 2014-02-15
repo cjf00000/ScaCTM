@@ -1,6 +1,7 @@
 SHELL   = /bin/bash
 PROJECT := $(realpath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 BIN     = $(PROJECT)/bin
+SCRIPTS = $(PROJECT)/scripts
 SRC     = $(PROJECT)/src
 COMMONS = $(SRC)/commons
 UNIGRAM = $(SRC)/Unigram_Model
@@ -18,6 +19,8 @@ LEARNTOPICS        = $(BIN)/learntopics
 DM_SERVER          = $(BIN)/DM_Server
 MERGE_DICTIONARIES = $(BIN)/Merge_Dictionaries
 MERGE_TOPIC_COUNTS = $(BIN)/Merge_Topic_Counts
+DUMP_JSON	   = $(BIN)/Dump_Json
+PERPLEXITY	   = $(BIN)/perplexity
 
 CXX      = $(THIRD_PARTY_BIN)/mpicxx 
 CXXFLAGS = -O4 \
@@ -29,12 +32,13 @@ INCFLAGS = -I$(SRC) \
            -I$(THIRD_PARTY_INCLUDE) #\
 #	   -I$(MKLINC)
 LDFLAGS  = -Wl,-rpath,$(THIRD_PARTY_LIB) \
+	   -fno-omit-frame-pointer \
            -L$(THIRD_PARTY_LIB) \
            -pthread \
            -lgflags \
            -lglog \
            -lprotobuf \
-           -ltcmalloc \
+	   -ltcmalloc \
            -ltbb \
            -lIce \
            -lIceUtil \
@@ -57,7 +61,6 @@ COMMONS_FORMATTER_SRC = $(shell find $(COMMONS)/Formatter -type f -name '*.cc')
 UNIGRAM_FORMATTER_SRC = $(shell find $(UNIGRAM)/Formatter -type f -name '*.cc')
 COMMONS_FORMATTER_OBJ = $(COMMONS_FORMATTER_SRC:.cc=.o)
 UNIGRAM_FORMATTER_OBJ = $(UNIGRAM_FORMATTER_SRC:.cc=.o)
-
 TOPICLEARNER_SRC = $(shell find $(COMMONS)/TopicLearner \
                                 $(UNIGRAM)/TopicLearner -type f -name '*.cc')
 TOPICLEARNER_OBJ = $(TOPICLEARNER_SRC:.cc=.o)
@@ -76,6 +79,8 @@ all: formatter \
      dm_server \
      merge_dictionaries \
      merge_topic_counts \
+     dump_json \
+     perplexity \
      setenv
 
 -include $(DEP)
@@ -88,9 +93,13 @@ learntopics:        path gensource $(LEARNTOPICS)
 dm_server:          path gensource $(DM_SERVER)
 merge_dictionaries: path gensource $(MERGE_DICTIONARIES)
 merge_topic_counts: path gensource $(MERGE_TOPIC_COUNTS)
+dump_json:	    path gensource $(DUMP_JSON)
+perplexity:	    path gensource $(PERPLEXITY)
 setenv:
-	echo "export LD_LIBRARY_PATH=$(THIRD_PARTY_LIB)" > $(PROJECT)/work/setenv.sh
-	chmod +x $(PROJECT)/work/setenv.sh
+	echo "export LD_LIBRARY_PATH=$(THIRD_PARTY_LIB):\$$LD_LIBRARY_PATH" > $(SCRIPTS)/setenv_bash
+	echo "export PATH=$(BIN):$(SCRIPTS):\$$PATH" >> $(SCRIPTS)/setenv_bash
+	echo "setenv LD_LIBRARY_PATH $(THIRD_PARTY_LIB):\$$LD_LIBRARY_PATH" > $(SCRIPTS)/setenv_csh
+	echo "setenv PATH $(BIN):$(SCRIPTS):\$$PATH" >> $(SCRIPTS)/setenv_csh
 
 $(NEED_MKDIR):
 	mkdir -p $@
@@ -126,6 +135,22 @@ $(MERGE_TOPIC_COUNTS): $(COMMONS_OBJ) \
                        $(UNIGRAM)/Merge/Merge_Topic_Counts.o
 	$(CXX) $(CXXFLAGS) $^ $(LDFLAGS) -o $@
 
+$(DUMP_JSON):		$(COMMONS_OBJ) \
+			$(UNIGRAM)/TopicLearner/TopKList.o \
+			$(UNIGRAM)/TopicLearner/TypeTopicCounts.o \
+			$(UNIGRAM)/TopicLearner/TopicCounts.o \
+			$(UNIGRAM)/TopicLearner/eff_small_map.o \
+			$(UNIGRAM)/Dump/dumpJson.o
+	$(CXX) $(CXXFLAGS) $^ $(LDFLAGS) -o $@
+
+$(PERPLEXITY):		$(COMMONS_OBJ) \
+			$(UNIGRAM)/TopicLearner/TopKList.o \
+			$(UNIGRAM)/TopicLearner/TypeTopicCounts.o \
+			$(UNIGRAM)/TopicLearner/TopicCounts.o \
+			$(UNIGRAM)/TopicLearner/eff_small_map.o \
+			$(UNIGRAM)/Perplexity/perplexity.o
+	$(CXX) $(CXXFLAGS) $^ $(LDFLAGS) -o $@
+
 %.o: %.cc
 	$(CXX) -c -MMD -MP $(CXXFLAGS) $(INCFLAGS) $< -o $@
 
@@ -140,6 +165,7 @@ clean:
 	@rm -rf $(BIN) \
                 $(OBJ) \
                 $(DEP) \
+		$(SCRIPTS)\setenv.sh \
                 $(COMMONS)/document.pb.{h,cc,d,o} \
                 $(COMMONS)/Server/DistributedMap.{h,cc,d,o}
 

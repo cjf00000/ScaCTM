@@ -12,18 +12,26 @@ Assume you already have BLAS and LAPACK installed, to build ScaCTM, simply do
         cd src
         make -j                 # Build ScaCTM in parallel
 
-See [BLAS](#BLAS) if you don't have BLAS and LAPACK.
+See [BLAS](#blas) if you don't have BLAS and LAPACK.
 
 Usage
 ----
+
+First you need to set some environment variables
+
+        source scripts/setenv_bash      # for bash
+        source scripts/setenv_csh       # for csh
+
 ### Input data
         wget https://raw.github.com/sudar/Yahoo_LDA/master/test/ydir_1k.txt
 
-### Single machine usage
+### Train
+
+### Train and test
+
+### Perplexity evaluation
 
 ### Distributed usage
-
-### Output data
 
 BLAS
 ----
@@ -59,11 +67,16 @@ make sure ATLAS is used by ScaCTM
         $ ls -l /etc/alternatives/libblas.so.3gf
         /etc/alternatives/libblas.so.3gf -> /usr/lib/atlas-base/atlas/libblas.so.3gf
 
-if you are still using the old BLAS, you can manually link with ATLAS by modifing LDFLAGS in src/Makefile.
+if you are still using the old BLAS, you can manually link with ATLAS by modifing `LDFLAGS` in `src/Makefile`. You can also use other BLAS such as MKL or ACML by modifing `INCFLAGS` and `LDFLAGS` in `src/Makefile`.
 
 ### NOTE
 
 Be cautious with OpenBLAS, we find ScaCTM works extremely slow with OpenBLAS.
+
+Bugs / New Features
+----
+
+Please create a issue for us if you found any bugs or want any new features. We look forward for your suggestions!
 
 Dependencies
 ----

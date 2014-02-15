@@ -1,0 +1,226 @@
+#!/usr/bin/env python
+import argparse
+import shutil
+import sys
+import time
+import os
+import re
+import remote
+import pickle
+
+def parse_machinefile(machinefile):
+	if machinefile is None:
+		machinefile = 'machinefile'
+		f = open(machinefile, 'w')
+		f.write('localhost\n')
+		f.close()
+
+		return (os.path.abspath(machinefile), ['localhost'])
+	else:
+		return (os.path.abspath(machinefile), open(machinefile).read().splitlines())
+
+if __name__ == '__main__':
+	parser = argparse.ArgumentParser(description="Test correlated topic model.")
+	
+	# corpus
+	parser.add_argument('corpus', metavar='corpus', type=str, help='Testing corpus')
+	# model
+	parser.add_argument('-m', metavar='modeldir', dest='model', type=str, help='Directory where model resides.')
+	# io
+	parser.add_argument('-o', metavar='outdir', dest='outdir', type=str, help='Place the output into <outdir>')
+	parser.add_argument('--heldout', metavar='heldout', dest='heldout', type=str, help='Held-out corpus')
+	# model parameters
+	parser.add_argument('--iter', metavar='iter', type=int, default=100, help='Number of Gibbs sampling iterations (for test).')
+
+	# parse args
+	args = parser.parse_args()
+	corpus_name = os.path.basename(args.corpus)
+	prefix = 'model'
+	if args.model is None:
+		print 'Error: modeldir not specified, use ./ctm-test -m modeldir to specify.'
+		sys.exit(0)
+
+        if args.outdir is None:
+                args.outdir = '%s.result' % os.path.basename(args.corpus)
+
+        # load model parameters
+        try:
+                train_args = pickle.load(open('%s/work/args' % args.model))
+        except:
+                print "Error: model file %s/work/args doesn't exist" % args.model
+        finally:
+                args.machinefile = train_args.machinefile
+                args.topics = train_args.topics
+                args.prior = train_args.prior
+                args.beta = train_args.beta
+	
+	# parse machinefile
+	(args.machinefile, machines) = parse_machinefile(args.machinefile)
+	num_machines = len(machines)
+	print 'Testing on ' + ', '.join(machines) + ' (%d nodes).' % num_machines
+
+	# set up some variables
+	root_dir = os.path.abspath(os.path.dirname(sys.argv[0]) + '/../')
+	model_dir = os.path.abspath(args.model) + '/work'
+	model_prefix = os.path.abspath(args.model) + '/work/' + prefix
+	output_dir = os.path.abspath(args.outdir)
+
+	log_dir = output_dir + '/' + 'log'
+	bin_dir = output_dir + '/' + 'bin'
+	work_dir = output_dir + '/' + 'work'
+	info_dir = output_dir + '/' + 'info'
+
+	mpi = '%s/third_party/third_party/bin/mpiexec -f %s' % (root_dir, args.machinefile)
+	mpirun = '%s -np %d' % (mpi, num_machines)
+	library = 'LD_LIBRARY_PATH=%s/third_party/third_party/lib' % root_dir
+
+	# set up directories
+	# make directory remotely
+	print 'Distributing executables...'
+	start = time.time()
+
+	remote.ssh_all(machines, 'mkdir -p ' + log_dir)
+	remote.ssh_all(machines, 'mkdir -p ' + bin_dir)
+	remote.ssh_all(machines, 'mkdir -p ' + work_dir)
+	remote.ssh_all(machines, 'mkdir -p ' + info_dir)
+
+	# distribute executables
+	remote.broadcast(root_dir + '/bin/learntopics', bin_dir, machines)
+	remote.broadcast(root_dir + '/bin/formatter', bin_dir, machines)
+	remote.broadcast(root_dir + '/bin/DM_Server', bin_dir, machines)
+	print 'Done (%f seconds).' % (time.time() - start)
+
+	# broadcast model
+	print 'Broadcasting model...'
+	start = time.time()
+
+	remote.broadcast(model_prefix + '.ttc.dump', model_dir, machines)
+	remote.broadcast(model_prefix + '.mu.dump', model_dir, machines)
+	remote.broadcast(model_prefix + '.cov.dump', model_dir, machines)
+	remote.broadcast(model_prefix + '.par.dump', model_dir, machines)
+
+	print 'Done (%f seconds).' % (time.time() - start)
+
+	# start server
+	print 'Starting server...'
+	cmd_start_server = library + " " + mpi
+	servers = ",".join(map(lambda x : x + ":7000", machines))
+	for (i, node) in enumerate(machines):
+		cmd_start_server = cmd_start_server + " -np 1 " + bin_dir + \
+		"/DM_Server 1 %d %d %s:7000" % (i, num_machines, node) + \
+		" --Ice.ThreadPool.Server.SizeMax=9"
+
+		if i+1 < num_machines:
+			cmd_start_server = cmd_start_server + " : "
+
+	remote.nohupBash(cmd_start_server)
+	time.sleep(3)
+
+	# splitcorpus
+	print 'Formatting corpus %s...' % args.corpus
+	start = time.time()
+
+	remote.bash('cp %s %s' % (args.corpus, work_dir))
+	remote.bash('cd %s; python %s/scripts/splitcorpus.py %s %d' % (work_dir, root_dir, corpus_name, num_machines))
+	work_corpus = work_dir + '/' + corpus_name
+	for i in xrange(num_machines):
+		remote.scp( '%s.%d' % (work_corpus, i), machines[i] + ':' + work_dir )
+
+	# format
+	res = remote.bash(library + ' ' + mpirun + ' %s/formatter --corpusprefix=%s/%s \
+			--outputprefix=%s/%s --log_dir=%s' % (bin_dir, work_dir, corpus_name, work_dir, prefix, log_dir))[1]
+
+	print 'Done (%f seconds).' % (time.time() - start)
+
+	# Train
+	print 'Testing'
+	start = time.time()
+
+	cmd_train = library + " " + mpirun + " %s/learntopics"	% (bin_dir) \
+		    + " -test"						    \
+		    + " --topics=%d"				% args.topics \
+		    + " --iter=%d"				% args.iter \
+		    + " --prior=%d"				% args.prior \
+		    + " --beta=%f"				% args.beta \
+		    + " --subiter=8" \
+		    + " --pgsamples=1" \
+		    + " --samplemode=pg1" \
+		    + " --lag=10000" \
+		    + " --servers=%s"				% servers \
+		    + " --chkptdir=%s"				% log_dir \
+		    + " --chkptinterval=10000" \
+		    + " --minibatchsize=16384" \
+		    + " --samplerthreads=12" \
+		    + " --inputprefix=%s/%s"			% (work_dir, prefix) \
+		    + " --dumpprefix=%s"			% model_prefix \
+		    + " --log_dir=%s"				% log_dir 
+
+        num_lines = int(remote.bash("wc -l %s | awk '{print $1}'" % work_corpus)[0])
+        cnt = 0 
+	for line in remote.real_time_bash(cmd_train):
+		if len(re.findall('Document', line))>0:
+                        cnt = cnt + 1
+			sys.stdout.write('\r%f%%' % (float(cnt) / num_lines * 100) )
+			sys.stdout.flush()
+	
+	sys.stdout.write('\n')
+	sys.stdout.flush()
+	print 'Done (%f seconds).' % (time.time() - start)
+
+	# gather results
+	print 'Gathering results...'
+	start = time.time()
+
+	remote.gather('%s/%s.wor.' % (work_dir, prefix), work_dir, machines) # gather wor
+	remote.gather('%s/%s.top.' % (work_dir, prefix), work_dir, machines) # gather dicts
+
+        # json
+        remote.bash('%s/bin/Dump_Json ' % root_dir \
+                  + str(args.topics) \
+                  + ' %s.dict.dump.global' % model_prefix \
+                  + ' %s.ttc.dump' % model_prefix \
+                  + ' %s/%s.wor' % (work_dir, prefix) \
+                  + ' %s/%s.top' % (work_dir, prefix) \
+                  + ' %f' % args.beta \
+                  + ' %d' % num_machines \
+                  + ' %s.mu.dump' % model_prefix \
+                  + ' %s.cov.dump' % model_prefix)
+
+        shutil.copy("%s/%s.top.json" % (work_dir, prefix), "%s/%s.top.json" % (info_dir, prefix))
+
+	# clean
+	for i in xrange(num_machines):
+		os.remove('%s/%s.%d' % (work_dir, corpus_name, i))
+
+	print 'Done (%f seconds). Output stored in %s.' % (time.time() - start, args.outdir)
+
+	# kill server
+	remote.bash(mpirun + ' killall DM_Server')
+
+	# test on heldout
+	if not (args.heldout is None):
+		print 'Computing held-out perplexity'
+
+		# split
+		heldout_corpus_name = os.path.basename(args.heldout)
+		remote.bash('cp %s %s' % (args.heldout, work_dir))
+		remote.bash('cd %s; python %s/scripts/splitcorpus.py %s %d' % (work_dir, root_dir, heldout_corpus_name, num_machines))
+		work_corpus = work_dir + '/' + heldout_corpus_name
+		for i in xrange(num_machines):
+			remote.scp( '%s.%d' % (work_corpus, i), machines[i] + ':' + work_dir )
+
+		# format
+		res = remote.bash(library + ' ' + mpirun + ' %s/formatter --corpusprefix=%s/%s \
+			--outputprefix=%s/%s --log_dir=%s' % (bin_dir, work_dir, heldout_corpus_name, work_dir, prefix, log_dir))[1]
+
+		remote.gather('%s/%s.wor.' % (work_dir, prefix), work_dir, machines) # gather dicts
+
+		res = remote.bash(library + ' ' + '%s/bin/perplexity' % root_dir \
+				+ ' %d' % args.topics \
+				+ ' %s.dict.dump.global' % model_prefix \
+				+ ' %s.ttc.dump' % model_prefix \
+				+ ' %s/%s.wor' % (work_dir, prefix) \
+				+ ' %s/%s.top' % (work_dir, prefix) \
+				+ ' %f %d' % (args.beta, len(machines)))
+
+		print 'Perplexity = ' + res[0]

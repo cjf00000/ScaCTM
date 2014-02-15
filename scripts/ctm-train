@@ -1,0 +1,207 @@
+#!/usr/bin/env python
+import argparse
+import shutil
+import sys
+import time
+import os
+import re
+import remote
+import pickle
+
+def parse_machinefile(machinefile):
+	if machinefile is None:
+		machinefile = 'machinefile'
+		f = open(machinefile, 'w')
+		f.write('localhost\n')
+		f.close()
+
+		return (os.path.abspath(machinefile), ['localhost'])
+	else:
+		return (os.path.abspath(machinefile), open(machinefile).read().splitlines())
+
+if __name__ == '__main__':
+	parser = argparse.ArgumentParser(description="Train correlated topic model.")
+	
+	# corpus
+	parser.add_argument('corpus', metavar='corpus', type=str, help='Training corpus')
+	# io
+	parser.add_argument('-f', metavar='machinefile', dest='machinefile', type=str, help='Provide a machinefile to use.')
+	parser.add_argument('-o', metavar='outdir', dest='outdir', type=str, default='', help='Place the output into <outdir>')
+	# model parameters
+	parser.add_argument('--topics', metavar='K', type=int, default=100, help='Learn K topics.')
+	parser.add_argument('--prior', metavar='alpha', type=float, default=100, help='Kappa and Rho of NIW distribution.')
+	parser.add_argument('--beta', metavar='beta', type=float, default=0.01, help='Weight of the Dirichlet conjugate for words.')
+	parser.add_argument('--iter', metavar='iter', type=int, default=350, help='Number of Gibbs sampling iterations.')
+	
+	# parse args
+	args = parser.parse_args()
+	corpus_name = os.path.basename(args.corpus)
+	prefix = 'model'
+        if args.outdir == '':
+                args.outdir = '%s.model' % os.path.basename(args.corpus)
+	
+	# parse machinefile
+	(args.machinefile, machines) = parse_machinefile(args.machinefile)
+	num_machines = len(machines)
+	print 'Training on ' + ', '.join(machines) + ' (%d nodes).' % num_machines
+
+	# set up some variables
+	root_dir = os.path.abspath(os.path.dirname(sys.argv[0]) + '/../')
+        library = "LD_LIBRARY_PATH=%s/third_party/third_party/lib " % root_dir
+	if os.path.exists(args.outdir):
+		print 'Error: directory %s/ already exists. Terminating... (Remove directory %s/ if you want to run again)' % (args.outdir, args.outdir)
+		sys.exit(0)
+	model_dir = os.path.abspath(args.outdir)
+
+	log_dir = model_dir + '/' + 'log'
+	bin_dir = model_dir + '/' + 'bin'
+	work_dir = model_dir + '/' + 'work'
+	info_dir = model_dir + '/' + 'info'
+
+	mpi = '%s/third_party/third_party/bin/mpiexec -f %s' % (root_dir, args.machinefile)
+	mpirun = '%s -np %d' % (mpi, num_machines)
+
+	# set up directories
+	# make directory remotely
+	print 'Distributing executables...'
+	start = time.time()
+
+	remote.ssh_all(machines, 'mkdir -p ' + log_dir)
+	remote.ssh_all(machines, 'mkdir -p ' + bin_dir)
+	remote.ssh_all(machines, 'mkdir -p ' + work_dir)
+	remote.ssh_all(machines, 'mkdir -p ' + info_dir)
+
+        pickle.dump(args, open('%s/args' % work_dir, 'w'))
+
+	# distribute executables
+	remote.broadcast(root_dir + '/bin/learntopics', bin_dir, machines)
+	remote.broadcast(root_dir + '/bin/formatter', bin_dir, machines)
+	remote.broadcast(root_dir + '/bin/DM_Server', bin_dir, machines)
+	print 'Done (%f seconds).' % (time.time() - start)
+
+	# start server
+	print 'Starting server...'
+	cmd_start_server = mpi
+	servers = ",".join(map(lambda x : x + ":7000", machines))
+	for (i, node) in enumerate(machines):
+		cmd_start_server = cmd_start_server + " -np 1 " + bin_dir + \
+		"/DM_Server 1 %d %d %s:7000" % (i, num_machines, node) + \
+		" --Ice.ThreadPool.Server.SizeMax=9"
+
+		if i+1 < num_machines:
+			cmd_start_server = cmd_start_server + " : "
+
+	remote.nohupBash(cmd_start_server)
+	time.sleep(3)
+
+	# splitcorpus
+	print 'Formatting corpus %s...' % args.corpus
+	start = time.time()
+
+	remote.bash('cp %s %s' % (args.corpus, work_dir))
+	remote.bash('cd %s; python %s/scripts/splitcorpus.py %s %d' % (work_dir, root_dir, corpus_name, num_machines))
+	work_corpus = work_dir + '/' + corpus_name
+	for i in xrange(num_machines):
+		remote.scp( '%s.%d' % (work_corpus, i), machines[i] + ':' + work_dir )
+
+	# format
+	remote.bash(library + " " + mpirun + ' %s/formatter --corpusprefix=%s/%s \
+			--outputprefix=%s/%s --log_dir=%s' % (bin_dir, work_dir, corpus_name, work_dir, prefix, log_dir))[1]
+
+	print 'Done (%f seconds).' % (time.time() - start)
+
+	# Train
+	print 'Training'
+	start = time.time()
+
+	cmd_train = library + " " + mpirun + " %s/learntopics"	% (bin_dir) \
+		    + " --topics=%d"				% args.topics \
+		    + " --iter=%d"				% args.iter \
+		    + " --prior=%d"				% args.prior \
+		    + " --beta=%f"				% args.beta \
+		    + " --subiter=8" \
+		    + " --pgsamples=1" \
+		    + " --samplemode=pg1" \
+		    + " --lag=10000" \
+		    + " --servers=%s"				% servers \
+		    + " --chkptdir=%s"				% log_dir \
+		    + " --chkptinterval=10000" \
+		    + " --minibatchsize=16384" \
+		    + " --samplerthreads=12" \
+		    + " --inputprefix=%s/%s"			% (work_dir, prefix) \
+		    + " --log_dir=%s"				% log_dir 
+
+        total_iter = num_machines * args.iter
+        cnt = 0
+	for line in remote.real_time_bash(cmd_train):
+		if len(re.findall('Iteration [0-9]+ done', line))>0:
+                        cnt = cnt + 1
+			sys.stdout.write('\r%f%%' % (float(cnt) / total_iter * 100))
+			sys.stdout.flush()
+	
+	sys.stdout.write('\n')
+	sys.stdout.flush()
+	print 'Done (%f seconds).' % (time.time() - start)
+
+	# gather results
+	print 'Gathering results...'
+	start = time.time()
+
+	remote.gather('%s/%s.dict.dump.' % (work_dir, prefix), work_dir, machines) # gather dicts
+	remote.gather('%s/%s.ttc.dump.' % (work_dir, prefix), work_dir, machines) # gather ttc
+	remote.gather('%s/%s.wor.' % (work_dir, prefix), work_dir, machines) # gather wor
+	remote.gather('%s/%s.top.' % (work_dir, prefix), work_dir, machines) # gather top
+	remote.bash("%s/bin/Merge_Dictionaries " % root_dir \
+			+ " --dictionaries=%d" % num_machines \
+			+ " --dumpprefix=%s/%s.dict.dump" % (work_dir, prefix) \
+		        + " --outputprefix=%s/%s" % (work_dir, prefix) \
+		        + " --log_dir=%s" % log_dir)
+
+	shutil.copy("%s/%s.dict.dump" % (work_dir, prefix), "%s/%s.dict.dump.global" % (work_dir, prefix))
+	remote.bash(" %s/bin/Merge_Topic_Counts " % root_dir \
+		            + "	--topics=%d " % args.topics \
+			    + " --clientid=0 " \
+			    + " --servers=%s " % servers \
+			    + " --globaldictionary=%s/%s.dict.dump.global" % (work_dir, prefix) \
+			    + " --outputprefix=%s/%s" % (work_dir, prefix) \
+			    + " --log_dir=%s" % log_dir)
+
+	shutil.copy("%s/%s.par.dump.0" % (work_dir, prefix), "%s/%s.par.dump" % (work_dir, prefix))
+	shutil.copy("%s/%s.mu.dump.0" % (work_dir, prefix), "%s/%s.mu.dump" % (work_dir, prefix))
+	shutil.copy("%s/%s.cov.dump.0" % (work_dir, prefix), "%s/%s.cov.dump" % (work_dir, prefix))
+
+	# topToWor, worToTop
+	#remote.gather('%s/%s.topToWor.txt.' % (work_dir, prefix), work_dir, machines) # topToWor
+	#remote.gather('%s/%s.worToTop.txt.' % (work_dir, prefix), work_dir, machines) # worToTop
+	#remote.gather('%s/%s.docToTop.txt.' % (work_dir, prefix), work_dir, machines) # worToTop
+
+        # json
+        remote.bash('%s/bin/Dump_Json ' % root_dir \
+                  + str(args.topics) \
+                  + ' %s/%s.dict.dump.global' % (work_dir, prefix) \
+                  + ' %s/%s.ttc.dump' % (work_dir, prefix) \
+                  + ' %s/%s.wor' % (work_dir, prefix) \
+                  + ' %s/%s.top' % (work_dir, prefix) \
+                  + ' %f' % args.beta \
+                  + ' %d' % num_machines \
+                  + ' %s/%s.mu.dump' % (work_dir, prefix) \
+                  + ' %s/%s.cov.dump' % (work_dir, prefix))
+
+        shutil.copy("%s/%s.mu.dump.json" % (work_dir, prefix), "%s/%s.mu.json" % (info_dir, prefix))
+        shutil.copy("%s/%s.cov.dump.json" % (work_dir, prefix), "%s/%s.cov.json" % (info_dir, prefix))
+        shutil.copy("%s/%s.cov.dump.corr.json" % (work_dir, prefix), "%s/%s.corr.json" % (info_dir, prefix))
+        shutil.copy("%s/%s.dict.dump.global.json" % (work_dir, prefix), "%s/%s.dict.json" % (info_dir, prefix))
+        shutil.copy("%s/%s.top.json" % (work_dir, prefix), "%s/%s.top.json" % (info_dir, prefix))
+        shutil.copy("%s/%s.ttc.dump.phi.json" % (work_dir, prefix), "%s/%s.phi.json" % (info_dir, prefix))
+        shutil.copy("%s/%s.topToWor.txt.0" % (work_dir, prefix), "%s/%s.topToWor.txt" % (info_dir, prefix))
+
+	# clean
+	for i in xrange(num_machines):
+		#os.remove('%s/%s.ttc.dump.%d' % (work_dir, prefix, i))
+		#os.remove('%s/%s.dict.dump.%d' % (work_dir, prefix, i))
+		os.remove('%s/%s.%d' % (work_dir, corpus_name, i))
+
+	print 'Done (%f seconds). Model stored in %s.' % (time.time() - start, model_dir)
+
+	# kill server
+	remote.bash(mpirun + ' killall DM_Server')
