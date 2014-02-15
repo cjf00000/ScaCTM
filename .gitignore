@@ -13,3 +13,17 @@ third_party
 # Generated source
 document.pb.*
 DistributedMap.*
+scripts/setenv*
+
+# Python
+*.pyc
+
+# vim
+*.swp
+*.swo
+
+# emacs
+*~
+
+# work
+work
