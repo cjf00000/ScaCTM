@@ -75,16 +75,60 @@ The training is now started, you will see its progress on your console
 
 When the training is completed, the result in stored in `ydir_1k.txt.model/info`
 
-        * `model.topToWor.txt` is learned topics
-        * `model.dict.json` is a list of dictionary / vocabulary
-        * `model.phi.json` is a V * K matrix phi, where V is vocabulary size and K is number of topics. phi[v, k] = p(w=v | z=k, phi) is the probabilty of word v of topic k. Word v is the v-th line in `model.dict.json`.
-        * `model.mu.json`, `model.cov.json` are prior mean and covariance. `model.corr.json` is the correlation matrix.
-        * `model.top.json` is the topic distribution `eta` for each document. It uses `docid` provided in data as key and `eta` as value.
+* `model.topToWor.txt` is learned topics
+* `model.dict.json` is a list of dictionary / vocabulary
+* `model.phi.json` is a V * K matrix phi, where V is vocabulary size and K is number of topics. phi[v, k] = p(w=v | z=k, phi) is the probabilty of word v of topic k. Word v is the v-th line in `model.dict.json`.
+* `model.mu.json`, `model.cov.json` are prior mean and covariance. `model.corr.json` is the correlation matrix.
+* `model.top.json` is the topic distribution `eta` for each document. It uses `docid` provided in data as key and `eta` as value.
 
 
 ### Train and test
 
+We need a training set and testing set
+
+        make_test_data.sh ydir_1k.txt ydir_1k.txt.train ydir_1k.txt.test 0.8
+
+You'll get a training set and a testing set with 8:2 documents.
+
+Train
+        ctm-train -f machinefile ydir_1k.txt.train
+
+Test
+        ctm-test -m ydir_1k.txt.train.model/ ydir_1k.txt.test 
+
+Test result is stored in `ydir_1k.txt.test.result/info`.
+
 ### Perplexity evaluation
+
+Sometimes you want to measure the perplexity on a test set. You need to further divide every document in the test set into an observed part and a heldout part. We'll infer eta on the observed part and measure perplexity on the heldout part. See the [paper](#reference) for detail.
+
+        make_test_data.sh ydir_1k.txt ydir_1k.txt.train ydir_1k.txt.test_observed 0.8 ydir_1k.txt.test_heldout
+
+You'll get a training set and a testing set with 8:2 documents, the test set is further divided into an observed part and a heldout part.
+
+Train
+        ctm-train -f machinefile ydir_1k.txt.train
+
+Test
+        ctm-test -m ydir_1k.txt.test_heldout --heldout ydir_1k.txt.train.model/ ydir_1k.txt.test_observed
+
+Perplexity is shown at the bottom.
+
+        Testing on juncluster1, juncluster2 (2 nodes).
+        Distributing executables...
+        Done (7.409382 seconds).
+        Broadcasting model...
+        Done (4.121498 seconds).
+        Starting server...
+        Formatting corpus ydir_1k.txt.test_observed...
+        Done (1.600488 seconds).
+        Testing
+        100.000000%
+        Done (2.053230 seconds).
+        Gathering results...
+        Done (5.485331 seconds). Output stored in ydir_1k.txt.test_observed.result.
+        Computing held-out perplexity
+        Perplexity = 4328.901294
 
 BLAS
 ----
@@ -143,6 +187,8 @@ Apache License 2.0
 
 Reference
 ----
+
+Please cite our paper if you find ScaCTM is useful!
 
 Jianfei Chen, Jun Zhu, Zi Wang, Xun Zheng, and Bo Zhang. Scalable Inference for Logistic-Normal Topic Models, Advances in Neural Information Processing Systems (NIPS), Lake Tahoe, USA, 2013. (NIPS 2013)
 
