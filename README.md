@@ -177,7 +177,7 @@ Be cautious with OpenBLAS, we find ScaCTM works extremely slow with OpenBLAS.
 Bugs / New Features
 ----
 
-Please create a issue for us if you found any bugs or want any new features. We look forward for your suggestions!
+Please [create a issue](https://github.com/cjf00000/ScaCTM/issues/new) for us if you found any bugs or want any new features. We look forward for your suggestions!
 
 Dependencies
 ----
