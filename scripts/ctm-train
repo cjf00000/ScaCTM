@@ -47,7 +47,7 @@ if __name__ == '__main__':
 
 	# set up some variables
 	root_dir = os.path.abspath(os.path.dirname(sys.argv[0]) + '/../')
-        library = "LD_LIBRARY_PATH=%s/third_party/third_party/lib " % root_dir
+        library = "LD_LIBRARY_PATH=%s/third_party/third_party/lib:$LD_LIBRARY_PATH " % root_dir
 	mpi = '%s/third_party/third_party/bin/mpiexec -f %s' % (root_dir, args.machinefile)
 	mpirun = '%s -np %d' % (mpi, num_machines)
 

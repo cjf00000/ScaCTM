@@ -76,7 +76,7 @@ if __name__ == '__main__':
 
 	mpi = '%s/third_party/third_party/bin/mpiexec -f %s' % (root_dir, args.machinefile)
 	mpirun = '%s -np %d' % (mpi, num_machines)
-	library = 'LD_LIBRARY_PATH=%s/third_party/third_party/lib' % root_dir
+	library = 'LD_LIBRARY_PATH=%s/third_party/third_party/lib:$LD_LIBRARY_PATH' % root_dir
 
 	# set up directories
 	# make directory remotely

@@ -30,7 +30,7 @@ INCFLAGS = -I$(SRC) \
            -I$(COMMONS)/Server \
            -I$(UNIGRAM) \
            -I$(THIRD_PARTY_INCLUDE) #\
-#	   -I$(MKLINC)
+#	   -I$(MKLROOT)/include
 LDFLAGS  = -Wl,-rpath,$(THIRD_PARTY_LIB) \
 	   -fno-omit-frame-pointer \
            -L$(THIRD_PARTY_LIB) \
@@ -41,8 +41,8 @@ LDFLAGS  = -Wl,-rpath,$(THIRD_PARTY_LIB) \
            -ltbb \
            -lIce \
            -lIceUtil \
-    	   -lblas -llapack
-#-L$(MKLLIB) -L$(ICCLIB) -lmkl_intel_lp64 -lmkl_core -lmkl_intel_thread -liomp5 -ldl -lm
+	   -lblas -llapack
+#	   -L$(MKLROOT)/lib/em64t -lmkl_intel_lp64 -lmkl_core -lmkl_intel_thread -liomp5 -ldl -lpthread -lm
 
 # ============= objects and dependencies =============
 

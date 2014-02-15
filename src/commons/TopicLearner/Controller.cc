@@ -44,7 +44,6 @@
 #include "Model.h"
 #include "DocumentReader.h"
 #include "document.pb.h"
-#include <gperftools/profiler.h>
 
 using namespace std;
 
