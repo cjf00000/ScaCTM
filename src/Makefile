@@ -38,7 +38,6 @@ LDFLAGS  = -Wl,-rpath,$(THIRD_PARTY_LIB) \
            -lgflags \
            -lglog \
            -lprotobuf \
-	   -ltcmalloc \
            -ltbb \
            -lIce \
            -lIceUtil \
