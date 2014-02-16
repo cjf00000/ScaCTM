@@ -4,7 +4,7 @@ Scalable inference for Correlated Topic Models (ScaCTM)
 Introduction
 ----
 
-[Correlated Topic Models](https://www.cs.princeton.edu/~blei/ctm-c) is a topic model for text or other discrete data that models correlation between the occurrence of different topics in a document (Figure 1).
+[Correlated Topic Model](https://www.cs.princeton.edu/~blei/ctm-c) is a topic model for text or other discrete data that models correlation between the occurrence of different topics in a document (Figure 1).
 
 ScaCTM is software that learn Correlated Topic Model of thousands of topics from millions of documents, with tens of machines.
 
@@ -12,9 +12,17 @@ ScaCTM is software that learn Correlated Topic Model of thousands of topics from
 
 Figure 1. Correlated Topic Model. (Blue monospace: output file names, Black monospace: input parameter names)
 
-The generative model is described as follows
+The generative model is described as follows.
 
 <img src="doc/ctm-model.png"/>
+
+Below is the speed of ScaCTM on some corpus. For more details, please refer to our [paper](#reference).
+
+|| corpus || number of documents || number of topics || time ||
+|| NIPS || 1.2K || 100 || 8.9 min ||
+|| 20NG || 11K || 200 || 9 min ||
+|| NYTimes || 285K || 400 || 0.5 hrs ||
+|| Wiki || 6M || 1000 || 17 hrs ||
 
 Install
 ----
