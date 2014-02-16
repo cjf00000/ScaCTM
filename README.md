@@ -9,9 +9,11 @@ Introduction
 ScaCTM is software that learn Correlated Topic Model of thousands of topics from millions of documents, with tens of machines.
 
 <img src="doc/ctm.png"/>
+
 Figure 1. Correlated Topic Model. (Blue monospace: output file names, Black monospace: input parameter names)
 
 The generative model is described as follows
+
 <img src="doc/ctm-model.png"/>
 
 Install
