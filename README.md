@@ -4,8 +4,15 @@ Scalable inference for Correlated Topic Models (ScaCTM)
 Introduction
 ----
 
-<img src="doc/ctm.png/>
-<img src="doc/ctm-model.png/>
+[Correlated Topic Models](https://www.cs.princeton.edu/~blei/ctm-c) is a topic model for text or other discrete data that models correlation between the occurrence of different topics in a document (Figure 1).
+
+ScaCTM is software that learn Correlated Topic Model of thousands of topics from millions of documents, with tens of machines.
+
+<img src="doc/ctm.png"/>
+Figure 1. Correlated Topic Model. (Blue monospace: output file names, Black monospace: input parameter names)
+
+The generative model is described as follows
+<img src="doc/ctm-model.png"/>
 
 Install
 ----
@@ -51,7 +58,7 @@ First, open a file `machinefile`, put the following lines
         juncluster1
         juncluster2
 
-Which is the hostnames for your cluster.
+Which are the hostnames for your cluster.
 
 Look at help of `ctm-train`
 
