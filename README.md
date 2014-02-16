@@ -18,11 +18,15 @@ The generative model is described as follows.
 
 Below is the speed of ScaCTM on some corpus. For more details, please refer to our [paper](#reference).
 
-|| corpus || number of documents || number of topics || time ||
-|| NIPS || 1.2K || 100 || 8.9 min ||
-|| 20NG || 11K || 200 || 9 min ||
-|| NYTimes || 285K || 400 || 0.5 hrs ||
-|| Wiki || 6M || 1000 || 17 hrs ||
+<table>
+<tbody>
+<tr><td> corpus</td><td> number of documents </td><td> number of topics </td><td> time </td></tr>
+<tr><td> NIPS </td><td> 1.2K </td><td> 100 </td><td> 8.9 min </td></tr>
+<tr><td> 20NG </td><td> 11K </td><td> 200 </td><td> 9 min </td></tr>
+<tr><td> NYTimes </td><td> 285K </td><td> 400 </td><td> 0.5 hrs </td></tr>
+<tr><td> Wiki </td><td> 6M </td><td> 1000 </td><td> 17 hrs </td></tr>
+</tbody>
+</table>
 
 Install
 ----
