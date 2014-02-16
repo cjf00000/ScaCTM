@@ -1,6 +1,12 @@
 Scalable inference for Correlated Topic Models (ScaCTM)
 ====
 
+Introduction
+----
+
+<img src="doc/ctm.png/>
+<img src="doc/ctm-model.png/>
+
 Install
 ----
 
