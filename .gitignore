@@ -6,9 +6,9 @@
 bin
 
 # Third-party
-third_party
-!third_party/Makefile
-!third_party/third_party/third_party.mk
+#third_party
+#!third_party/Makefile
+#!third_party/third_party/third_party.mk
 
 # Generated source
 document.pb.*
