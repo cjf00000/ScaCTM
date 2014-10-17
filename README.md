@@ -41,6 +41,8 @@ Assume you already have BLAS and LAPACK installed, to build ScaCTM, simply do
 
 See [BLAS](#blas) if you don't have BLAS and LAPACK.
 
+Chinese users: if you have trouble installing, see [this](https://github.com/cjf00000/ScaCTM/issues/1).
+
 Usage
 ----
 
