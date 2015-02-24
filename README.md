@@ -143,7 +143,7 @@ Train
 
 Test
 
-        ctm-test -m ydir_1k.txt.test_heldout --heldout ydir_1k.txt.train.model/ ydir_1k.txt.test_observed
+        ctm-test -m ydir_1k.txt.train.model/ --heldout ydir_1k.txt.test_heldout ydir_1k.txt.test_observed
 
 Perplexity is shown at the bottom.
 
