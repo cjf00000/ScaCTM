@@ -31,6 +31,7 @@
 #include "types.h"
 #include <vector>
 #include "tbb/atomic.h"
+#include "tbb/spin_mutex.h"
 
 //!An implementation of the Pipeline interface using
 //!PThread. It is only a dummy pipeline to use yahoo-lda's interface.
@@ -70,10 +71,14 @@ protected:
     bool _ifSampleEta;
     bool _ifAccumulate;
     bool _ifSampleGauss;
+    bool _ifEval;
     int _num_threads;
 
     // count down
     tbb::atomic<int> _current_document;
+    tbb::atomic<int> _eval_words;
+    double _eval_likelihood;
+    tbb::spin_mutex _eval_likelihood_m;
 
 	double time_sample;
 	double time_gauss;

@@ -463,59 +463,57 @@ void* Unigram_Model_Trainer::optimize(void* token) {
 void* Unigram_Model_Trainer::eval(void* token, double& eval_value) {
     update_t* upd = (update_t*) token;
     LDA::unigram_document& doc = *(upd->doc);
+    int num_words_in_doc = doc.body_size();
 
     double doc_loglikelihood = 0.0;
 
-    topic_t* local_topic_counts = new topic_t[_num_topics];
-    topic_t* local_topic_index = new topic_t[_num_topics];
-    int num_words_in_doc = doc.body_size();
+	double beta_sum = _beta.sum;
+	double beta = _beta.values[0];
 
-    /************* Compute Likelihood **************/
-    //Clear topic Counts
-    memset(local_topic_counts, 0, _num_topics * sizeof(topic_t));
-    memset(local_topic_index, 0, _num_topics * sizeof(topic_t));
+    double *theta = alloc<double>(_num_topics);
+    double *eta = alloc<double>(_num_topics);
+    double *phi = alloc<double>(_num_topics);
+    for (topic_t topic = 0; topic < _num_topics; ++topic)
+    {
+	    eta[topic] = doc.eta(topic);
+    }
+    softmax(theta, eta, _num_topics);
 
-    int non_zero_topics = 0;
-    topic_t* ltcInd = local_topic_counts;
-    topic_t* ltdInd = local_topic_index;
-    if (!ignore_old_topic) {
-        //Build the dense local_topic_counts with index
-        for (int k = 0; k < num_words_in_doc; k++) {
-            topic_t topic = doc.topic_assignment(k);
-            ++local_topic_counts[topic];
-        }
+    tbb::atomic<topic_t> *tokens_per_topic = new tbb::atomic<topic_t> [_num_topics]; //Storage for n(t)
+    _ttc.get_counts(tokens_per_topic);
 
-        for (topic_t t = 0; t < _num_topics; t++) {
-            int n = *ltcInd;
-            if (n != 0) {
-                *ltdInd = t;
-                ++ltdInd;
-                ++non_zero_topics;
-            }
-            ++ltcInd;
-        }
-        //----- Local Topic Counts built
+    topicCounts current_topic_counts(_num_topics); //Storage for topic counts for the current word
+
+    for (int n=0; n<num_words_in_doc; n++)
+    {
+			double likelihood = 0;
+	    word_t word = doc.body(n);
+            _ttc.get_counts(word, &current_topic_counts);
+
+		memset(phi, 0, sizeof(double) * _num_topics);
+
+	    for (int j=0; j<current_topic_counts.length; ++j)
+	    {
+			topic_t top = current_topic_counts.items[j].choose.top;
+			cnt_t cnt = current_topic_counts.items[j].choose.cnt;
+			phi[top] += cnt;
+		}
+
+	    for (topic_t topic = 0; topic < _num_topics; ++topic)
+	    {
+		    double phi0 = (phi[topic] + beta) / (tokens_per_topic[topic] + beta_sum);
+		    likelihood += theta[topic] * phi0;
+	    }    
+
+		doc_loglikelihood += log(likelihood);
     }
 
-    //Accumulate loglikelihood for this doc
-    ltdInd = local_topic_index;
-    for (int i = 0; i < non_zero_topics; i++) {
-        topic_t topic = *ltdInd;
-        double gal = _alpha.values[topic];
-        int cnt = local_topic_counts[topic];
-        doc_loglikelihood += log_gamma(gal + cnt) - log_gamma(gal);
-
-        LOG_IF(FATAL,std::isnan(doc_loglikelihood))<< gal << "," << cnt << "," <<_alpha.sum << "," << num_words_in_doc;
-
-        ++ltdInd;
-    }
-    doc_loglikelihood += log_gamma(_alpha.sum) - log_gamma(_alpha.sum + num_words_in_doc);
-    /************* Compute Likelihood **************/
-
-    delete [] local_topic_counts;
-    delete [] local_topic_index;
+	delete[] theta;
+	delete[] eta;
+	delete[] phi;
 
     eval_value = doc_loglikelihood;
+
     return upd;
 }
 
@@ -712,7 +710,6 @@ void Unigram_Model_Trainer::sampleGauss()
 	int total_num_documents = 0;
 	int send_num_documents = _num_documents;
 	MPI_Reduce(&send_num_documents, &total_num_documents, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-	LOG(WARNING) << "Pre Synchronize: " << start.toc() << " seconds";
 
 	sampleGauss_work(total_num_documents, rank, size, eta_s, q_s);
 	
@@ -722,11 +719,6 @@ void Unigram_Model_Trainer::sampleGauss()
 
 	MPI_Broadcast_Symmetry_Matrix(_cov, rank, size);
 	_prec = _cov.i();
-	LOG(WARNING) << "Post Synchronize: " << start.toc() << " seconds";
-
-	LOG(WARNING) << "Rank " << rank << "Mu is " << _mu.n_rows << "x" << _mu.n_cols;
-	LOG(WARNING) << "Rank " << rank << "Cov is " << _cov.n_rows << "x" << _cov.n_cols;
-	LOG(WARNING) << "Rank " << rank << "Prec is " << _prec.n_rows << "x" << _prec.n_cols;
 }
 
 // this._num_documents is the number of local documents
@@ -769,7 +761,6 @@ void Unigram_Model_Trainer::iteration_done() {
 
     string cmd = "mv " + output_t + " " + input_t;
     system(cmd.c_str());
-    LOG(WARNING) << "Restarting IO && Clear Accumulated Eta";
     release_io();
     set_up_io(input_w, input_t, output_t);
 

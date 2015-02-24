@@ -27,6 +27,7 @@
 #include <pthread.h>
 #include "glog/logging.h"
 #include <armadillo>
+#include <cmath>
 using namespace std;
 using namespace arma;
 
@@ -48,6 +49,7 @@ void PThread_Pipeline::init() {
     _ifAccumulate = false;
     _ifSampleEta = false;
     _ifSampleTopic = false;
+    _ifEval = false;
 
 	_readSet = new vector<update_t*>();
 	_writeSet = new vector<update_t*>();
@@ -104,7 +106,9 @@ void PThread_Pipeline::add_gausssampler()
 }
 
 void PThread_Pipeline::add_eval() {
-	LOG(FATAL) << "Unsupported method add_eval";
+	_ifEval = true;
+	_eval_words = 0;
+	_eval_likelihood = 0;
 }
 
 void PThread_Pipeline::add_writer() {
@@ -120,7 +124,7 @@ Model_Refiner& PThread_Pipeline::get_refiner() {
 }
 
 double PThread_Pipeline::get_eval() {
-	LOG(FATAL) << "Unsupported method get_eval";
+	return exp(-_eval_likelihood / _eval_words);
 	
 	return 0;
 }
@@ -197,13 +201,21 @@ void PThread_Pipeline::sample(int thread_id)
 
 		if (_ifSampleEta)
 			_refiner.sampleEta(upd, thread_id);
+
+		if (_ifEval)
+		{
+			double eval_value = 0;
+			_refiner.eval(upd, eval_value);
+
+			_eval_words += (upd->doc)->body_size();
+			_eval_likelihood_m.lock();
+			_eval_likelihood += eval_value;
+			_eval_likelihood_m.unlock();
+		}
 	}
 }
 
 void PThread_Pipeline::run() {
-	LOG(WARNING) << "Iteration start. readset = " << _readSet->size()
-			<< ", writeset = " << _writeSet->size() << ", workingset = " << _workingSet->size();
-
 	wall_clock myclock;
 	do{
 		_current_document = _workingSet->size() - 1;
@@ -219,7 +231,6 @@ void PThread_Pipeline::run() {
 
 		// Create sample threads
 		int samplerThreads = Context::get_instance().get_int("samplerthreads");
-                LOG(WARNING) << "!!!!!!! samplerThreads: " << samplerThreads;
 		pthread_t *sample_thread = new pthread_t[samplerThreads];
 		ThreadObject *o_sample = new ThreadObject[samplerThreads];
 		for (int i=0; i<samplerThreads; ++i)
@@ -257,9 +268,6 @@ void PThread_Pipeline::run() {
 		_writeSet = _workingSet;
 		_workingSet = _readSet;
 		_readSet = tmp;
-
-		LOG(WARNING) << "Mini batch done. readset = " << _readSet->size()
-				<< ", writeset = " << _writeSet->size() << ", workingset = " << _workingSet->size();
 	}
 	while (!_readSet->empty() || !_writeSet->empty() || !_workingSet->empty());
 

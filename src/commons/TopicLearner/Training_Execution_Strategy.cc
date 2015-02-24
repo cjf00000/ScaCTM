@@ -81,6 +81,11 @@ void Training_Execution_Strategy::execute() {
 	    _pipeline.add_gausssampler();
 	}
 
+	if (compute_loglikelihood)
+	{
+		_pipeline.add_eval();
+	}
+
         _pipeline.add_writer();
         tbb::tick_count t0 = tbb::tick_count::now();
         _pipeline.run();
@@ -89,14 +94,12 @@ void Training_Execution_Strategy::execute() {
                 << (t1 - t0).seconds() / 60 << " mins" << endl;
     	double t_end = MPI_Wtime();
 		LOG(WARNING) << "Time elapsed: " << t_end - t_start;
-        /*if (compute_loglikelihood) {
-            double word_loglikelihood = _model.get_eval();
+
+        if (compute_loglikelihood) {
             double doc_loglikelihood = _pipeline.get_eval();
             LOG(WARNING)
-                    << ">>>>>>>>>> Log-Likelihood (model, doc, total): "
-                    << word_loglikelihood << " , " << doc_loglikelihood
-                    << " , " << word_loglikelihood + doc_loglikelihood;
-        }*/
+                    << ">>>>>>>>>> Perplexity: " << doc_loglikelihood;
+        }
 	if (lag!=-1 && iter%lag==0)
 	{
 		_pipeline.dump(iter);

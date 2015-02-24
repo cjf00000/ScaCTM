@@ -294,19 +294,16 @@ void Random::NIWrnd(arma::mat &mu, arma::mat &cov,
 	start.tic();
 	MPI_Broadcast_Symmetry_Matrix(wishart, rank, size);
 	MPI_Bcast(&kappa, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	LOG(WARNING) << "Pre2 took " << start.toc() << " seconds";
 
 	// No need to broadcast mu_0, since we only need it on rank 0
 
 	start.tic();
 	cov = rinvertwishart(wishart, kappa, rank, size);
-	LOG(WARNING) << "Rinvertwishart took " << start.toc() << " seconds";
 
 	if (rank==0)
 	{
 		start.tic();
 		mat prec = (cov/rho).i();
-		LOG(WARNING) << "Compute inverse took " << start.toc() << " seconds";
 
 		mu = nextMVGaussian(mu_0, prec, 1);
 	}
