@@ -107,7 +107,7 @@ if __name__ == '__main__':
 
 	# format
 	remote.bash(library + " " + mpirun + ' %s/formatter --corpusprefix=%s/%s \
-			--outputprefix=%s/%s --log_dir=%s' % (bin_dir, work_dir, corpus_name, work_dir, prefix, log_dir))[1]
+			--outputprefix=%s/%s --log_dir=%s' % (bin_dir, work_dir, corpus_name, work_dir, prefix, log_dir))
 
 	print 'Done (%f seconds).' % (time.time() - start)
 

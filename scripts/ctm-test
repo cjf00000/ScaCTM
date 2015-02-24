@@ -65,6 +65,10 @@ if __name__ == '__main__':
 	model_prefix = os.path.abspath(args.model) + '/work/' + prefix
 	output_dir = os.path.abspath(args.outdir)
 
+	mpi = '%s/third_party/third_party/bin/mpiexec -f %s' % (root_dir, args.machinefile)
+	mpirun = '%s -np %d' % (mpi, num_machines)
+	library = 'LD_LIBRARY_PATH=%s/third_party/third_party/lib:$LD_LIBRARY_PATH' % root_dir
+
 	if os.path.exists(args.outdir):
                 remote.bash(library + " " + mpi + " rm -rf %s" % args.outdir)
 		#print 'Error: directory %s/ already exists. Terminating... (Remove directory %s/ if you want to run again)' % (args.outdir, args.outdir)
@@ -73,10 +77,6 @@ if __name__ == '__main__':
 	bin_dir = output_dir + '/' + 'bin'
 	work_dir = output_dir + '/' + 'work'
 	info_dir = output_dir + '/' + 'info'
-
-	mpi = '%s/third_party/third_party/bin/mpiexec -f %s' % (root_dir, args.machinefile)
-	mpirun = '%s -np %d' % (mpi, num_machines)
-	library = 'LD_LIBRARY_PATH=%s/third_party/third_party/lib:$LD_LIBRARY_PATH' % root_dir
 
 	# set up directories
 	# make directory remotely
@@ -99,6 +99,7 @@ if __name__ == '__main__':
 	start = time.time()
 
 	remote.broadcast(model_prefix + '.ttc.dump', model_dir, machines)
+	remote.broadcast(model_prefix + '.dict.dump.global', model_dir, machines)
 	remote.broadcast(model_prefix + '.mu.dump', model_dir, machines)
 	remote.broadcast(model_prefix + '.cov.dump', model_dir, machines)
 	remote.broadcast(model_prefix + '.par.dump', model_dir, machines)
@@ -132,7 +133,8 @@ if __name__ == '__main__':
 
 	# format
 	res = remote.bash(library + ' ' + mpirun + ' %s/formatter --corpusprefix=%s/%s \
-			--outputprefix=%s/%s --log_dir=%s' % (bin_dir, work_dir, corpus_name, work_dir, prefix, log_dir))[1]
+			--dumpfile=%s.dict.dump.global \
+			--outputprefix=%s/%s --log_dir=%s' % (bin_dir, work_dir, corpus_name, model_prefix, work_dir, prefix, log_dir))[1]
 
 	print 'Done (%f seconds).' % (time.time() - start)
 
@@ -215,7 +217,8 @@ if __name__ == '__main__':
 
 		# format
 		res = remote.bash(library + ' ' + mpirun + ' %s/formatter --corpusprefix=%s/%s \
-			--outputprefix=%s/%s --log_dir=%s' % (bin_dir, work_dir, heldout_corpus_name, work_dir, prefix, log_dir))[1]
+			--dumpfile=%s.dict.dump.global \
+			--outputprefix=%s/%s --log_dir=%s' % (bin_dir, work_dir, heldout_corpus_name, model_prefix, work_dir, prefix, log_dir))[1]
 
 		remote.gather('%s/%s.wor.' % (work_dir, prefix), work_dir, machines) # gather dicts
 
