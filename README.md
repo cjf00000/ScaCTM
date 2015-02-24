@@ -225,6 +225,4 @@ Please cite our paper if you find ScaCTM is useful!
 
 Jianfei Chen, Jun Zhu, Zi Wang, Xun Zheng, and Bo Zhang. Scalable Inference for Logistic-Normal Topic Models, Advances in Neural Information Processing Systems (NIPS), Lake Tahoe, USA, 2013. (NIPS 2013)
 
-Some demonstration can be found at http://ml-thu.net/~scalable-ctm/.
-
-[![githalytics.com alpha](https://cruel-carlota.pagodabox.com/b7934a612e0ac5dda8484dfb31f5df7e "githalytics.com")](http://githalytics.com/cjf00000/ScaCTM)
+Some demonstration can be found at http://ml.cs.tsinghua.edu.cn/~scalable-ctm/.
