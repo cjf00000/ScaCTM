@@ -43,6 +43,8 @@ See [BLAS](#blas) if you don't have BLAS and LAPACK.
 
 Chinese users: if you have trouble installing, see [this](https://github.com/cjf00000/ScaCTM/issues/1).
 
+For offline installation, download everything in `https://github.com/cjf00000/ScaCTM/releases`, put them in `third_party/third_party/src`, then do the normal installation sequence above.
+
 Usage
 ----
 
