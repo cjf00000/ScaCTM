@@ -57,6 +57,8 @@ Then, copy ScaCTM to every nodes of cluster. We assume you have two nodes, `junc
 
         scp -r ScaCTM juncluster2:
 
+**Note: you need to execute `source scripts/setenv_<your shell>` in every shell session.**
+
 ### Input data
 Download the example data, from [Yahoo-LDA](https://github.com/sudar/Yahoo_LDA)
 
@@ -149,21 +151,21 @@ Test
 
 Perplexity is shown at the bottom.
 
-        Testing on juncluster1, juncluster2 (2 nodes).
-        Distributing executables...
-        Done (7.409382 seconds).
-        Broadcasting model...
-        Done (4.121498 seconds).
-        Starting server...
-        Formatting corpus ydir_1k.txt.test_observed...
-        Done (1.600488 seconds).
-        Testing
-        100.000000%
-        Done (2.053230 seconds).
-        Gathering results...
-        Done (5.485331 seconds). Output stored in ydir_1k.txt.test_observed.result.
-        Computing held-out perplexity
-        Perplexity = 4328.901294
+	Testing on juncluster1, juncluster2 (2 nodes).
+	Distributing executables...
+	Done (3.956380 seconds).
+	Broadcasting model...
+	Done (2.808829 seconds).
+	Starting server...
+	Formatting corpus ydir_1k.txt.test_observed...
+	Done (0.642709 seconds).
+	Testing
+	100.000000%
+	Done (4.367594 seconds).
+	Gathering results...
+	Done (4.367329 seconds). Output stored in ydir_1k.txt.test_observed.result.
+	Computing held-out perplexity
+	Perplexity = 1112.114460
 
 BLAS
 ----
