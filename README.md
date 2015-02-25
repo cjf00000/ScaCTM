@@ -38,6 +38,7 @@ Assume you already have BLAS and LAPACK installed, to build ScaCTM, simply do
         cd ..
         cd src
         make -j                 # Build ScaCTM in parallel
+        cd ..
 
 See [BLAS](#blas) if you don't have BLAS and LAPACK.
 
