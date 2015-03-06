@@ -33,6 +33,7 @@ Install
 
 Assume you already have BLAS and LAPACK installed, to build ScaCTM, simply do
 
+	git clone --recursive http://github.com/cjf00000/ScaCTM.git
         cd third_party
         make                    # Install third-party dependencies, takes 6 minutes on our 12-core server
         cd ..
